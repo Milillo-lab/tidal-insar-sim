@@ -67,6 +67,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "PL", "RUF"]
 ignore = [
     "PLR0913",  # Too many arguments — physics functions need many parameters
     "PLR2004",  # Magic value in comparison — common in physics/tests against published values
+    "PLC0415",  # Local imports — intentional (lazy-load pyTMD, avoid circular deps)
 ]
 
 [tool.ruff.lint.per-file-ignores]

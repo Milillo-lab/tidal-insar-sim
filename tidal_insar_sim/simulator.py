@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
@@ -20,8 +20,9 @@ TideFn = Callable[[NDArray[np.float64]], NDArray[np.float64]]
 class Simulator:
     """Bind a Sensor and Site and run sweeps / Monte Carlo against a tide function.
 
-    For Checkpoint 1 the `tide_fn` is a mock synthesizer (see `tidal_insar_sim.tides.mock`).
-    Checkpoint 2 wires this to a CATS2008-backed `tide_fn` via pyTMD.
+    If `tide_fn` is not supplied, CATS2008 is auto-loaded at the site's (lat, lon)
+    via pyTMD on first use. Set `tide_fn=` explicitly to inject a mock tide (tests)
+    or a custom backend.
     """
 
     sensor: Sensor
@@ -31,15 +32,30 @@ class Simulator:
     DEFAULT_SWEEP_DAYS: float = 29.53
     DEFAULT_STEP_HOURS: float = 1.0
 
+    _resolved_tide_fn: TideFn | None = field(default=None, init=False, repr=False)
+
     def _require_tide_fn(self) -> TideFn:
-        if self.tide_fn is None:
-            msg = (
-                "Simulator.tide_fn is unset. In Checkpoint 1 you must supply a mock tide "
-                "callable; pass e.g. `Simulator(sensor=..., site=..., "
-                "tide_fn=mixed_m2_k1_tide())`. CATS2008 lookup will be wired in Checkpoint 2."
-            )
-            raise RuntimeError(msg)
-        return self.tide_fn
+        if self.tide_fn is not None:
+            return self.tide_fn
+        if self._resolved_tide_fn is not None:
+            return self._resolved_tide_fn
+        # Lazy-build a CATS2008-backed tide_fn at the site's lat/lon.
+        from tidal_insar_sim.tides.cats2008 import CATSBackend, make_cats_tide_fn
+
+        backend = CATSBackend()
+        self._resolved_tide_fn = make_cats_tide_fn(
+            backend=backend, lat=self.site.lat, lon=self.site.lon
+        )
+        return self._resolved_tide_fn
+
+    @property
+    def tide_source(self) -> str:
+        """Human-readable description of where tides are coming from."""
+        if self.tide_fn is not None:
+            return "user-supplied"
+        if self._resolved_tide_fn is not None:
+            return f"CATS2008@{self.site.lat:+.2f},{self.site.lon:+.2f}"
+        return "unresolved"
 
     def sweep_triplets(
         self,

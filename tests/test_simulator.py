@@ -76,10 +76,20 @@ def test_no_greenland_presets_in_v0_1() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_simulator_requires_tide_fn_in_c1() -> None:
+def test_simulator_without_tide_fn_auto_loads_cats_or_fails_loudly() -> None:
+    """When `tide_fn=None`, Simulator auto-loads CATS2008. If CATS is not
+    installed, it must fail with TidalDataUnavailable (not a cryptic error)."""
+    from tidal_insar_sim.tides.cats2008 import CATS_FILES, CATS_SUBDIR, DEFAULT_DATA_DIR
+    from tidal_insar_sim.tides.errors import TidalDataUnavailable
+
+    cats_installed = all((DEFAULT_DATA_DIR / CATS_SUBDIR / f).exists() for f in CATS_FILES)
     sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
-    with pytest.raises(RuntimeError, match="tide_fn"):
-        sim.sweep_triplets()
+    if cats_installed:
+        report = sim.sweep_triplets()
+        assert report.summary()["n_triplets"] > 0
+    else:
+        with pytest.raises(TidalDataUnavailable):
+            sim.sweep_triplets()
 
 
 def test_sweep_report_summary_keys() -> None:
