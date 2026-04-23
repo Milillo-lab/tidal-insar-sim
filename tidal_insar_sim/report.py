@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
 
 from tidal_insar_sim.physics.fringe import TripletSweep
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from tidal_insar_sim.simulator import Simulator
 
 # Operational thresholds from prototype_sweep.py
 FRINGE_THRESHOLDS = {
@@ -41,6 +48,7 @@ class TripletReport:
     sweep: TripletSweep
     site_name: str
     sensor_name: str
+    simulator: Simulator | None = field(default=None, repr=False)
 
     @property
     def fringes(self) -> NDArray[np.float64]:
@@ -93,6 +101,67 @@ class TripletReport:
             "hDD_std_m": float(np.std(hdd)),
             "verdict": verdict,
         }
+
+    def to_csv(self, path: str | Path) -> None:
+        """Per-triplet sweep data + summary as a CSV (one row per triplet)."""
+        import pandas as pd
+
+        df = pd.DataFrame({
+            "delta_t_hours": self.sweep.delta_t_hours,
+            "h1_m": self.sweep.h1_m,
+            "h2_m": self.sweep.h2_m,
+            "h3_m": self.sweep.h3_m,
+            "h_dd_m": self.sweep.h_dd_m,
+            "fringes": self.sweep.fringes,
+        })
+        df["site"] = self.site_name
+        df["sensor"] = self.sensor_name
+        df.to_csv(path, index=False)
+
+    def to_geojson(self, path: str | Path, *, include_polygon: bool = True) -> None:
+        from tidal_insar_sim.io.geojson_export import report_to_geojson
+
+        report_to_geojson(self, path, include_polygon=include_polygon)
+
+    def to_kml(self, path: str | Path, *, include_polygon: bool = True) -> None:
+        from tidal_insar_sim.io.kml_export import report_to_kml
+
+        report_to_kml(self, path, include_polygon=include_polygon)
+
+    def recommended_triplets(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        n: int = 10,
+        min_fringes: float = 3.0,
+        *,
+        step_hours: float = 1.0,
+        jitter_hours: float = 1.0,
+        n_mc_realisations: int = 4_000,
+        rng_seed: int | None = 2026,
+    ) -> pd.DataFrame:
+        """Top-`n` triplets in [start_date, end_date] with confidence. See
+        `tidal_insar_sim.planner.plan_acquisitions`."""
+        if self.simulator is None:
+            msg = (
+                "TripletReport.recommended_triplets requires a bound Simulator. "
+                "Call via `sim.sweep_triplets().recommended_triplets(...)`, or "
+                "use `tidal_insar_sim.planner.plan_acquisitions(sim, ...)` directly."
+            )
+            raise RuntimeError(msg)
+        from tidal_insar_sim.planner import plan_acquisitions
+
+        return plan_acquisitions(
+            self.simulator,
+            start_date=start_date,
+            end_date=end_date,
+            n=n,
+            min_fringes=min_fringes,
+            step_hours=step_hours,
+            jitter_hours=jitter_hours,
+            n_mc_realisations=n_mc_realisations,
+            rng_seed=rng_seed,
+        )
 
     def class_fractions(self) -> dict[str, float]:
         """Fraction of triplet phases in each named fringe class."""

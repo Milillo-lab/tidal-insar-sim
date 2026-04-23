@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,6 +13,9 @@ from tidal_insar_sim.physics.fringe import TripletSweep, rigid_triplet_sweep
 from tidal_insar_sim.report import TripletReport
 from tidal_insar_sim.sensor import Sensor
 from tidal_insar_sim.site import Site
+
+if TYPE_CHECKING:
+    from tidal_insar_sim.synthesis import FringeMap
 
 TideFn = Callable[[NDArray[np.float64]], NDArray[np.float64]]
 
@@ -76,6 +80,50 @@ class Simulator:
             sweep=sweep,
             site_name=self.site.name,
             sensor_name=self.sensor.name,
+            simulator=self,
+        )
+
+    def synthesize_ddinsar(
+        self,
+        triplet_start_hours: float,
+        *,
+        size_m: tuple[float, float] = (15_000.0, 10_000.0),
+        pixel_m: float = 15.0,
+        gamma_grounded: float = 0.88,
+        gamma_shelf: float = 0.60,
+        multi_look: int = 8,
+        noise_seed: int | None = 1,
+    ) -> FringeMap:
+        """Build a 2D synthetic fringe map for a triplet starting at
+        `triplet_start_hours` hours after the CATS2008 reference epoch.
+
+        Delegates to `tidal_insar_sim.synthesis.synthesize_fringe_map`.
+        """
+        from tidal_insar_sim.synthesis import synthesize_fringe_map
+
+        tide_fn = self._require_tide_fn()
+        repeat_hours = self.sensor.repeat_days * 24.0
+        triplet_times = np.array(
+            [triplet_start_hours,
+             triplet_start_hours + repeat_hours,
+             triplet_start_hours + 2.0 * repeat_hours],
+            dtype=np.float64,
+        )
+        heights = tide_fn(triplet_times)
+        h1, h2, h3 = float(heights[0]), float(heights[1]), float(heights[2])
+
+        return synthesize_fringe_map(
+            sensor=self.sensor,
+            site=self.site,
+            h1_m=h1,
+            h2_m=h2,
+            h3_m=h3,
+            size_m=size_m,
+            pixel_m=pixel_m,
+            gamma_grounded=gamma_grounded,
+            gamma_shelf=gamma_shelf,
+            multi_look=multi_look,
+            noise_seed=noise_seed,
         )
 
     def confidence(
