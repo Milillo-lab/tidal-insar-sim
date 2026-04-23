@@ -81,7 +81,7 @@ Site.ROSS_GZ16 = Site(lat=-84.30, lon=-163.00, name="Whillans_GZ16", ice_thickne
 Site.TOTTEN = Site(lat=-66.90, lon=116.00, name="Totten_GL", ice_thickness_m=1500.0)
 Site.POPE = Site(lat=-74.70, lon=-113.00, name="Pope_GL", ice_thickness_m=600.0)
 Site.SMITH = Site(lat=-74.60, lon=-112.00, name="Smith_GL", ice_thickness_m=700.0)
-Site.KOHLER = Site(lat=-75.30, lon=-114.80, name="Kohler_GL", ice_thickness_m=650.0)
+Site.KOHLER = Site(lat=-75.00, lon=-114.20, name="Kohler_GL", ice_thickness_m=650.0)
 
 
 SITE_PRESETS: dict[str, Site] = {

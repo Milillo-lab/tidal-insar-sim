@@ -33,7 +33,7 @@ CATS_FILES = ("grid_CATS2008", "hf.CATS2008.out")
 CATS_DOMAIN_LAT_MAX = -30.0  # CATS2008 ends around here (Antarctic Circle is -66.5)
 
 DEFAULT_CONSTITUENTS = ("m2", "s2", "n2", "k2", "k1", "o1", "p1", "q1")
-DEFAULT_EXTRAPOLATE_CUTOFF_KM = 10.0
+DEFAULT_EXTRAPOLATE_CUTOFF_KM = 30.0  # ~7 CATS2008 cells; covers typical GL-preset coords
 
 # pyTMD's time axis is seconds since this epoch (matches brief §3.4 EPOCH_2000).
 EPOCH_2000 = (2000, 1, 1, 0, 0, 0)
