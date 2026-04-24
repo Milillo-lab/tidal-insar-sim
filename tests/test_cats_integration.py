@@ -40,7 +40,7 @@ cats_only = pytest.mark.skipif(
 
 @cats_only
 def test_simulator_auto_loads_cats_at_thwaites() -> None:
-    sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
+    sim = Simulator(sensor=Sensor.L_BAND, site=Site.THWAITES)
     report = sim.sweep_triplets()
     s = report.summary()
     assert s["n_triplets"] > 0
@@ -55,8 +55,8 @@ def test_simulator_auto_loads_cats_at_thwaites() -> None:
 def test_simulator_regime_switches_between_sites() -> None:
     """Rutford (semidiurnal, big amplitude) should yield more fringes than
     Thwaites (diurnal, ~1 m envelope) for NISAR's 12-day repeat."""
-    rep_rutford = Simulator(Sensor.NISAR_L, Site.RUTFORD).sweep_triplets()
-    rep_thwaites = Simulator(Sensor.NISAR_L, Site.THWAITES).sweep_triplets()
+    rep_rutford = Simulator(Sensor.L_BAND, Site.RUTFORD).sweep_triplets()
+    rep_thwaites = Simulator(Sensor.L_BAND, Site.THWAITES).sweep_triplets()
     assert (
         rep_rutford.summary()["fringe_mean"] > rep_thwaites.summary()["fringe_mean"]
     ), "Rutford should dominate Thwaites in fringe count under NISAR-L"
@@ -67,7 +67,7 @@ def test_explicit_tide_fn_short_circuits_cats() -> None:
     """If user supplies `tide_fn=`, Simulator must NOT call CATS."""
     from tidal_insar_sim.tides.mock import mixed_m2_k1_tide
 
-    sim = Simulator(Sensor.NISAR_L, Site.THWAITES, tide_fn=mixed_m2_k1_tide())
+    sim = Simulator(Sensor.L_BAND, Site.THWAITES, tide_fn=mixed_m2_k1_tide())
     sim.sweep_triplets()
     assert sim.tide_source == "user-supplied"
 

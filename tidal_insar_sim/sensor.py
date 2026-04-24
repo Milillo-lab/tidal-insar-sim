@@ -1,4 +1,4 @@
-"""SAR sensor model."""
+"""SAR sensor model — band-based (X / C / L)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,26 @@ from typing import ClassVar
 
 @dataclass(frozen=True)
 class Sensor:
-    """A SAR sensor configuration relevant to DDInSAR fringe-count prediction."""
+    """A SAR sensor, identified by its band (X / C / L).
 
-    name: str
+    A `Sensor` encodes the electromagnetic properties (wavelength, LOS
+    geometry) but *not* the observation cadence — that lives on a
+    `Constellation`. The same band can describe a single spacecraft
+    (e.g. NISAR-L) or a multi-satellite constellation (e.g. Sentinel-1
+    C-band with two spacecraft).
+
+    Attributes
+    ----------
+    band : "X" | "C" | "L"
+    wavelength_m : float — SAR wavelength in metres.
+    incidence_deg : float — centre incidence angle in degrees.
+    polarization : str — default "HH".
+    """
+
+    band: str
     wavelength_m: float
-    repeat_days: float
     incidence_deg: float
     polarization: str = "HH"
-    provider: str = ""
 
     @property
     def half_wavelength_m(self) -> float:
@@ -25,57 +37,33 @@ class Sensor:
     def fringe_los_cm(self) -> float:
         return self.half_wavelength_m * 100.0
 
-    NISAR_L: ClassVar[Sensor]
-    SENTINEL_1_SINGLE: ClassVar[Sensor]
-    SENTINEL_1_DUAL: ClassVar[Sensor]
-    ALOS_2: ClassVar[Sensor]
-    ALOS_4: ClassVar[Sensor]
-    COSMO_SKYMED: ClassVar[Sensor]
-    TERRASAR_X: ClassVar[Sensor]
-    RADARSAT_CONSTELLATION: ClassVar[Sensor]
-    UMBRA_X: ClassVar[Sensor]
+    @property
+    def name(self) -> str:
+        return f"{self.band}-band ({self.wavelength_m*100:.1f} cm)"
+
+    X_BAND: ClassVar[Sensor]
+    C_BAND: ClassVar[Sensor]
+    L_BAND: ClassVar[Sensor]
 
 
-Sensor.NISAR_L = Sensor(
-    name="NISAR-L", wavelength_m=0.2360, repeat_days=12.0, incidence_deg=39.0, provider="NASA/ISRO"
-)
-Sensor.SENTINEL_1_SINGLE = Sensor(
-    name="Sentinel-1 (single)", wavelength_m=0.0556, repeat_days=12.0, incidence_deg=39.0,
-    provider="ESA",
-)
-Sensor.SENTINEL_1_DUAL = Sensor(
-    name="Sentinel-1 (dual)", wavelength_m=0.0556, repeat_days=6.0, incidence_deg=39.0,
-    provider="ESA",
-)
-Sensor.ALOS_2 = Sensor(
-    name="ALOS-2", wavelength_m=0.2360, repeat_days=14.0, incidence_deg=34.0, provider="JAXA"
-)
-Sensor.ALOS_4 = Sensor(
-    name="ALOS-4", wavelength_m=0.2360, repeat_days=14.0, incidence_deg=34.0, provider="JAXA"
-)
-Sensor.COSMO_SKYMED = Sensor(
-    name="COSMO-SkyMed", wavelength_m=0.0312, repeat_days=4.0, incidence_deg=32.0, provider="ASI"
-)
-Sensor.TERRASAR_X = Sensor(
-    name="TerraSAR-X", wavelength_m=0.0311, repeat_days=11.0, incidence_deg=36.0, provider="DLR"
-)
-Sensor.RADARSAT_CONSTELLATION = Sensor(
-    name="RCM", wavelength_m=0.0556, repeat_days=4.0, incidence_deg=34.0, provider="CSA"
-)
-Sensor.UMBRA_X = Sensor(
-    name="Umbra-X", wavelength_m=0.0312, repeat_days=0.0, incidence_deg=40.0, provider="Umbra"
-)
+# Band defaults — wavelengths drawn from the dominant sensor in each band.
+Sensor.X_BAND = Sensor(band="X", wavelength_m=0.0312, incidence_deg=35.0)
+Sensor.C_BAND = Sensor(band="C", wavelength_m=0.0556, incidence_deg=39.0)
+Sensor.L_BAND = Sensor(band="L", wavelength_m=0.2360, incidence_deg=39.0)
 
 
+BAND_PRESETS: dict[str, Sensor] = {
+    "X": Sensor.X_BAND,
+    "C": Sensor.C_BAND,
+    "L": Sensor.L_BAND,
+}
+
+# Alias dict for CLI back-compat.
 SENSOR_PRESETS: dict[str, Sensor] = {
-    "NISAR-L": Sensor.NISAR_L,
-    "SENTINEL-1": Sensor.SENTINEL_1_SINGLE,
-    "SENTINEL-1-SINGLE": Sensor.SENTINEL_1_SINGLE,
-    "SENTINEL-1-DUAL": Sensor.SENTINEL_1_DUAL,
-    "ALOS-2": Sensor.ALOS_2,
-    "ALOS-4": Sensor.ALOS_4,
-    "COSMO-SKYMED": Sensor.COSMO_SKYMED,
-    "TERRASAR-X": Sensor.TERRASAR_X,
-    "RCM": Sensor.RADARSAT_CONSTELLATION,
-    "UMBRA-X": Sensor.UMBRA_X,
+    "X-BAND": Sensor.X_BAND,
+    "C-BAND": Sensor.C_BAND,
+    "L-BAND": Sensor.L_BAND,
+    "X": Sensor.X_BAND,
+    "C": Sensor.C_BAND,
+    "L": Sensor.L_BAND,
 }

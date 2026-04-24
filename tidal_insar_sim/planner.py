@@ -68,7 +68,7 @@ def plan_acquisitions(
 
     delta_t = np.arange(start_h, end_h + step_hours, step_hours, dtype=np.float64)
     tide_fn = sim._require_tide_fn()
-    repeat_hours = sim.sensor.repeat_days * 24.0
+    repeat_hours = sim._effective_baseline_days * 24.0
     h1 = tide_fn(delta_t)
     h2 = tide_fn(delta_t + repeat_hours)
     h3 = tide_fn(delta_t + 2.0 * repeat_hours)

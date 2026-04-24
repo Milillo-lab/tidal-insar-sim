@@ -82,8 +82,8 @@ def test_resolve_site_custom() -> None:
 def test_resolve_sensor_preset() -> None:
     store: dict[str, object] = {}
     init_state(store)
-    store[K_SENSOR_NAME] = "NISAR-L"
-    assert resolve_sensor(store).name == "NISAR-L"
+    store[K_SENSOR_NAME] = "L-BAND"
+    assert resolve_sensor(store).band == "L"
 
 
 def test_invalidate_computed_clears_cached_results() -> None:
@@ -99,7 +99,7 @@ def test_snapshot_from_store() -> None:
     init_state(store)
     snap = Snapshot.from_store(store)
     assert snap.site_name == "Thwaites_GL"
-    assert snap.sensor_name == "NISAR-L"
+    assert snap.sensor_name == "L-BAND"
     assert snap.site_lat == -75.00
 
 
@@ -111,7 +111,7 @@ def test_snapshot_from_store() -> None:
 @pytest.fixture(scope="module")
 def report():
     sim = Simulator(
-        sensor=Sensor.NISAR_L, site=Site.RUTFORD,
+        sensor=Sensor.L_BAND, site=Site.RUTFORD,
         tide_fn=mixed_m2_k1_tide(amp_m2_m=1.4, amp_k1_m=0.3),
     )
     return sim.sweep_triplets()
@@ -139,7 +139,7 @@ def test_plot_tide_time_series(report) -> None:
 
 def test_plot_fringe_map() -> None:
     sim = Simulator(
-        sensor=Sensor.NISAR_L, site=Site.RUTFORD,
+        sensor=Sensor.L_BAND, site=Site.RUTFORD,
         tide_fn=mixed_m2_k1_tide(amp_m2_m=1.4, amp_k1_m=0.3),
     )
     # Small map, fast
@@ -168,34 +168,23 @@ def test_app_entry_does_not_error() -> None:
     assert not at.exception, f"app.py raised: {at.exception}"
 
 
-def test_configure_page_renders() -> None:
-    at = _run_page(_PAGES_DIR / "2_Configure.py")
-    assert not at.exception, f"Configure raised: {at.exception}"
-    # sensor selectbox exists
-    assert any("Preset" in str(sb.label) for sb in at.selectbox)
-
-
-def test_map_page_renders() -> None:
-    """Folium renders offline — just assert page doesn't raise."""
-    at = _run_page(_PAGES_DIR / "1_Map.py", timeout=60.0)
-    assert not at.exception, f"Map raised: {at.exception}"
+def test_setup_page_renders() -> None:
+    """The merged Setup page loads with Antarctic map + constellation form."""
+    at = _run_page(_PAGES_DIR / "1_Setup.py", timeout=60.0)
+    assert not at.exception, f"Setup raised: {at.exception}"
 
 
 def test_batch_page_renders_without_running() -> None:
-    at = _run_page(_PAGES_DIR / "4_Batch.py")
+    at = _run_page(_PAGES_DIR / "3_Batch.py")
     assert not at.exception
-    # multiselects for sites + sensors
     assert len(at.multiselect) >= 2
 
 
 def test_export_page_noop_without_artifacts() -> None:
-    """With no cached report/plan/batch, Export shows an info message and stops."""
-    at = _run_page(_PAGES_DIR / "5_Export.py")
+    at = _run_page(_PAGES_DIR / "4_Export.py")
     assert not at.exception
 
 
-def test_single_site_page_without_cats_warns() -> None:
-    """CATS2008 IS installed in the dev env, but pressing Run without first
-    clicking the button should just show the 'click Run' info."""
-    at = _run_page(_PAGES_DIR / "3_Single_Site.py", timeout=60.0)
+def test_single_site_page_renders() -> None:
+    at = _run_page(_PAGES_DIR / "2_Single_Site.py", timeout=60.0)
     assert not at.exception

@@ -14,7 +14,7 @@ from tidal_insar_sim.tides.mock import MixedTide, mixed_m2_k1_tide, multi_consti
 def _make_sim_thwaites_like() -> Simulator:
     """NISAR-L + a Thwaites-like MixedTide (A_M2=0.8, A_K1=0.5)."""
     return Simulator(
-        sensor=Sensor.NISAR_L,
+        sensor=Sensor.L_BAND,
         site=Site.THWAITES,
         tide_fn=mixed_m2_k1_tide(),
     )
@@ -25,27 +25,19 @@ def _make_sim_thwaites_like() -> Simulator:
 # ---------------------------------------------------------------------------
 
 
-def test_sensor_nisar_l_parameters() -> None:
-    s = Sensor.NISAR_L
+def test_sensor_l_band_parameters() -> None:
+    s = Sensor.L_BAND
+    assert s.band == "L"
     assert s.wavelength_m == pytest.approx(0.2360)
-    assert s.repeat_days == 12.0
     assert s.incidence_deg == pytest.approx(39.0)
     assert s.fringe_los_cm == pytest.approx(11.8, rel=1e-3)
 
 
-def test_sensor_presets_are_all_distinct_instances() -> None:
-    presets = [
-        Sensor.NISAR_L,
-        Sensor.SENTINEL_1_SINGLE,
-        Sensor.SENTINEL_1_DUAL,
-        Sensor.ALOS_2,
-        Sensor.ALOS_4,
-        Sensor.COSMO_SKYMED,
-        Sensor.TERRASAR_X,
-        Sensor.RADARSAT_CONSTELLATION,
-        Sensor.UMBRA_X,
-    ]
-    assert len({p.name for p in presets}) == len(presets)
+def test_sensor_band_presets_are_distinct() -> None:
+    presets = [Sensor.X_BAND, Sensor.C_BAND, Sensor.L_BAND]
+    names = [p.name for p in presets]
+    assert len(set(names)) == 3
+    assert {p.band for p in presets} == {"X", "C", "L"}
 
 
 def test_site_flexural_parameter_matches_physics_module() -> None:
@@ -83,7 +75,7 @@ def test_simulator_without_tide_fn_auto_loads_cats_or_fails_loudly() -> None:
     from tidal_insar_sim.tides.errors import TidalDataUnavailable
 
     cats_installed = all((DEFAULT_DATA_DIR / CATS_SUBDIR / f).exists() for f in CATS_FILES)
-    sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
+    sim = Simulator(sensor=Sensor.L_BAND, site=Site.THWAITES)
     if cats_installed:
         report = sim.sweep_triplets()
         assert report.summary()["n_triplets"] > 0
@@ -103,7 +95,7 @@ def test_sweep_report_summary_keys() -> None:
         "hDD_range_m", "hDD_std_m", "verdict",
     }
     assert expected_keys <= summary.keys()
-    assert summary["sensor"] == "NISAR-L"
+    assert summary["sensor"].startswith("L-band")
     assert summary["site"] == "Thwaites_GL"
 
 
@@ -168,8 +160,8 @@ def test_sweep_with_semidiurnal_tide_dominates_fringes() -> None:
         amplitudes_m={"M2": 0.20, "S2": 0.10, "K1": 0.55, "O1": 0.50},
         phases_deg={"M2": 80.0, "S2": 120.0, "K1": 220.0, "O1": 200.0},
     )
-    sim_r = Simulator(sensor=Sensor.NISAR_L, site=Site.RUTFORD, tide_fn=rutford_like)
-    sim_t = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES, tide_fn=thwaites_like)
+    sim_r = Simulator(sensor=Sensor.L_BAND, site=Site.RUTFORD, tide_fn=rutford_like)
+    sim_t = Simulator(sensor=Sensor.L_BAND, site=Site.THWAITES, tide_fn=thwaites_like)
     rep_r = sim_r.sweep_triplets()
     rep_t = sim_t.sweep_triplets()
     assert rep_r.summary()["fringe_mean"] > rep_t.summary()["fringe_mean"]
@@ -249,4 +241,4 @@ def test_triplet_report_dataclass() -> None:
     sim = _make_sim_thwaites_like()
     report = sim.sweep_triplets()
     assert isinstance(report, TripletReport)
-    assert report.sensor_name == "NISAR-L"
+    assert "L-band" in report.sensor_name

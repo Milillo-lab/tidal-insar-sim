@@ -23,7 +23,7 @@ from tidal_insar_sim.tides.mock import mixed_m2_k1_tide
 
 def _make_fringe_map(**kwargs: float) -> FringeMap:
     defaults: dict[str, object] = {
-        "sensor": Sensor.NISAR_L,
+        "sensor": Sensor.L_BAND,
         "site": Site.THWAITES,
         "h1_m": 0.30,
         "h2_m": -0.10,
@@ -161,7 +161,7 @@ def test_fringe_map_geotiff_round_trip(tmp_path: Path) -> None:
 
 def test_simulator_synthesize_ddinsar_uses_mock_tide() -> None:
     sim = Simulator(
-        sensor=Sensor.NISAR_L,
+        sensor=Sensor.L_BAND,
         site=Site.THWAITES,
         tide_fn=mixed_m2_k1_tide(),
     )
@@ -172,5 +172,5 @@ def test_simulator_synthesize_ddinsar_uses_mock_tide() -> None:
     )
     assert fmap.shape == (40, 60)
     assert fmap.site_name == "Thwaites_GL"
-    assert fmap.sensor_name == "NISAR-L"
+    assert "L-band" in fmap.sensor_name
     assert fmap.h_dd_m != 0.0  # peak scenario must not be null

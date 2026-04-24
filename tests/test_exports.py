@@ -23,7 +23,7 @@ from tidal_insar_sim.tides.mock import mixed_m2_k1_tide
 @pytest.fixture(scope="module")
 def report_and_sim():
     sim = Simulator(
-        sensor=Sensor.NISAR_L, site=Site.RUTFORD,
+        sensor=Sensor.L_BAND, site=Site.RUTFORD,
         tide_fn=mixed_m2_k1_tide(amp_m2_m=1.4, amp_k1_m=0.3),
     )
     return sim.sweep_triplets(), sim

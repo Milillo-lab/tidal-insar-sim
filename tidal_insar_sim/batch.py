@@ -7,7 +7,7 @@ and for the batch page of the web UI.
 
 Use cases
 ---------
-- `df = batch_compare([Site.THWAITES, Site.RUTFORD], [Sensor.NISAR_L, Sensor.SENTINEL_1_DUAL])`
+- `df = batch_compare([Site.THWAITES, Site.RUTFORD], [Sensor.L_BAND, Sensor.C_BAND])`
 - `batch_to_parquet(df, "batch.parquet")` for persistence
 - `pivot_heatmap(df, metric="P_usable_ge_3fr")` for visual comparison
 """
@@ -28,7 +28,7 @@ from tidal_insar_sim.simulator import Simulator
 from tidal_insar_sim.site import Site
 
 if TYPE_CHECKING:
-    pass
+    from tidal_insar_sim.constellation import Constellation
 
 TideFn = Callable[[NDArray[np.float64]], NDArray[np.float64]]
 
@@ -46,40 +46,55 @@ def batch_compare(
     sites: Iterable[Site],
     sensors: Iterable[Sensor],
     *,
+    constellations: Iterable[Constellation] | None = None,
     tide_fn_factory: Callable[[Site], TideFn | None] | None = None,
     step_hours: float = 1.0,
     duration_days: float = 29.53,
 ) -> pd.DataFrame:
-    """Return a DataFrame with one row per (site, sensor) pair.
+    """Return a DataFrame with one row per (site, sensor, constellation) combo.
 
     Parameters
     ----------
     sites, sensors : iterables of Site and Sensor objects.
+    constellations : iterable of Constellation objects. If None, each sensor
+        is paired with a single-satellite 12-day constellation (NISAR-like).
     tide_fn_factory : optional callable `(site) -> tide_fn`. If None, each
         Simulator auto-loads CATS2008 (requires CATS2008 on disk).
     """
+    from tidal_insar_sim.constellation import Constellation as _Constellation
+
     rows: list[dict[str, object]] = []
     sites_list = list(sites)
     sensors_list = list(sensors)
+    constellations_list: list[_Constellation] = (
+        list(constellations)
+        if constellations is not None
+        else [_Constellation.single(repeat_days=12.0, name="default")]
+    )
     for site in sites_list:
         tide_fn = tide_fn_factory(site) if tide_fn_factory is not None else None
         for sensor in sensors_list:
-            sim = Simulator(sensor=sensor, site=site, tide_fn=tide_fn)
-            report = sim.sweep_triplets(
-                step_hours=step_hours, duration_days=duration_days
-            )
-            row: dict[str, object] = {
-                "site": site.name,
-                "lat": site.lat,
-                "lon": site.lon,
-                "ice_thickness_m": site.ice_thickness_m,
-                "sensor": sensor.name,
-                "wavelength_m": sensor.wavelength_m,
-                "repeat_days": sensor.repeat_days,
-                "incidence_deg": sensor.incidence_deg,
-            }
-            row.update(report.summary())
-            rows.append(row)
+            for constellation in constellations_list:
+                sim = Simulator(
+                    sensor=sensor, site=site, tide_fn=tide_fn,
+                    constellation=constellation,
+                )
+                report = sim.sweep_triplets(
+                    step_hours=step_hours, duration_days=duration_days
+                )
+                row: dict[str, object] = {
+                    "site": site.name,
+                    "lat": site.lat,
+                    "lon": site.lon,
+                    "ice_thickness_m": site.ice_thickness_m,
+                    "sensor": sensor.name,
+                    "wavelength_m": sensor.wavelength_m,
+                    "incidence_deg": sensor.incidence_deg,
+                    "n_satellites": constellation.n_satellites,
+                    "effective_baseline_days": constellation.effective_repeat_days(),
+                }
+                row.update(report.summary())
+                rows.append(row)
     return pd.DataFrame(rows)
 
 

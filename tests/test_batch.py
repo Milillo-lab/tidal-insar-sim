@@ -14,10 +14,15 @@ from tidal_insar_sim.batch import (
     batch_to_parquet,
     pivot_heatmap,
 )
+from tidal_insar_sim.constellation import Constellation
 from tidal_insar_sim.tides.mock import mixed_m2_k1_tide, multi_constituent_tide
 
 SITES = [Site.THWAITES, Site.RUTFORD]
-SENSORS = [Sensor.NISAR_L, Sensor.SENTINEL_1_DUAL]
+SENSORS = [Sensor.L_BAND, Sensor.C_BAND]
+CONSTELLATIONS = [
+    Constellation.single(repeat_days=12.0, name="NISAR-like"),
+    Constellation.equally_phased(n=2, repeat_days=12.0, name_prefix="S1"),
+]
 
 
 def _mock_tide_factory(site: Site):
@@ -34,17 +39,17 @@ def test_batch_compare_shape() -> None:
     df = batch_compare(SITES, SENSORS, tide_fn_factory=_mock_tide_factory)
     assert len(df) == len(SITES) * len(SENSORS)
     assert set(df["site"].unique()) == {"Thwaites_GL", "Rutford_GL"}
-    assert set(df["sensor"].unique()) == {"NISAR-L", "Sentinel-1 (dual)"}
+    assert {b.split(" ")[0] for b in df["sensor"].unique()} == {"L-band", "C-band"}
 
 
 def test_batch_compare_has_expected_summary_columns() -> None:
     df = batch_compare(SITES, SENSORS, tide_fn_factory=_mock_tide_factory)
     expected = {
-        "site", "sensor", "lat", "lon", "wavelength_m", "repeat_days",
+        "site", "sensor", "lat", "lon", "wavelength_m",
         "incidence_deg", "ice_thickness_m", "n_triplets",
         "P_usable_ge_3fr", "P_robust_ge_5fr", "P_null_lt_0p5fr",
         "fringe_mean", "fringe_median", "fringe_max",
-        "verdict", "hDD_range_m",
+        "verdict", "hDD_range_m", "effective_baseline_days",
     }
     assert expected <= set(df.columns)
 
@@ -53,10 +58,10 @@ def test_batch_rutford_beats_thwaites_on_fringe_mean() -> None:
     df = batch_compare(SITES, SENSORS, tide_fn_factory=_mock_tide_factory)
     rutford = df[df["site"] == "Rutford_GL"]
     thwaites = df[df["site"] == "Thwaites_GL"]
-    for sensor in ["NISAR-L", "Sentinel-1 (dual)"]:
-        fr_r = rutford[rutford["sensor"] == sensor]["fringe_mean"].iloc[0]
-        fr_t = thwaites[thwaites["sensor"] == sensor]["fringe_mean"].iloc[0]
-        assert fr_r > fr_t, f"{sensor}: Rutford={fr_r:.2f} not > Thwaites={fr_t:.2f}"
+    for sensor_name in df["sensor"].unique():
+        fr_r = rutford[rutford["sensor"] == sensor_name]["fringe_mean"].iloc[0]
+        fr_t = thwaites[thwaites["sensor"] == sensor_name]["fringe_mean"].iloc[0]
+        assert fr_r > fr_t, f"{sensor_name}: Rutford={fr_r:.2f} not > Thwaites={fr_t:.2f}"
 
 
 def test_batch_parquet_round_trip(tmp_path: Path) -> None:

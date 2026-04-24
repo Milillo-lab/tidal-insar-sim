@@ -25,8 +25,8 @@ selected_sites = col_a.multiselect(
     "Sites", options=sorted(SITE_PRESETS), default=["THWAITES", "RUTFORD"],
 )
 selected_sensors = col_b.multiselect(
-    "Sensors", options=sorted(SENSOR_PRESETS),
-    default=["NISAR-L", "SENTINEL-1-DUAL"],
+    "Sensors", options=["X-BAND", "C-BAND", "L-BAND"],
+    default=["C-BAND", "L-BAND"],
 )
 metric = st.selectbox(
     "Heatmap metric",

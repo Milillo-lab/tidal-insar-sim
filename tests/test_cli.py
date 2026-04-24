@@ -73,7 +73,7 @@ def test_analyze_preset_rutford_writes_outputs(tmp_path: Path) -> None:
     out = tmp_path / "rutford"
     result = CliRunner().invoke(
         cli,
-        ["analyze", "--sensor", "NISAR-L", "--preset", "RUTFORD",
+        ["analyze", "--sensor", "L-BAND", "--preset", "RUTFORD",
          "--duration", "29.53", "--output", str(out)],
     )
     assert result.exit_code == 0, result.output
@@ -91,7 +91,7 @@ def test_analyze_lat_lon_mode(tmp_path: Path) -> None:
     out = tmp_path / "custom"
     result = CliRunner().invoke(
         cli,
-        ["analyze", "--sensor", "NISAR-L",
+        ["analyze", "--sensor", "L-BAND",
          "--lat", "-78.5", "--lon", "-83.0",
          "--name", "rutford_custom", "--ice-thickness", "2000",
          "--output", str(out), "--no-geojson", "--no-kml"],
@@ -106,7 +106,7 @@ def test_analyze_rejects_missing_coords() -> None:
     """Neither --preset nor --lat/--lon → UsageError."""
     result = CliRunner().invoke(
         cli,
-        ["analyze", "--sensor", "NISAR-L", "--output", "out"],
+        ["analyze", "--sensor", "L-BAND", "--output", "out"],
     )
     assert result.exit_code != 0
     assert "preset" in result.output.lower() or "lat" in result.output.lower()
@@ -115,7 +115,7 @@ def test_analyze_rejects_missing_coords() -> None:
 def test_analyze_rejects_unknown_sensor() -> None:
     result = CliRunner().invoke(
         cli,
-        ["analyze", "--sensor", "BOGUS-X", "--preset", "RUTFORD", "--output", "out"],
+        ["analyze", "--sensor", "BOGUS", "--preset", "RUTFORD", "--output", "out"],
     )
     assert result.exit_code != 0
     assert "sensor" in result.output.lower()
@@ -131,7 +131,7 @@ def test_plan_rutford_writes_csv_and_ics(tmp_path: Path) -> None:
     out = tmp_path / "plan"
     result = CliRunner().invoke(
         cli,
-        ["plan", "--sensor", "NISAR-L", "--preset", "RUTFORD",
+        ["plan", "--sensor", "L-BAND", "--preset", "RUTFORD",
          "--start", "2026-06-01T00:00", "--end", "2026-07-15T00:00",
          "--top-n", "3", "--min-fringes", "8", "--output", str(out)],
     )
@@ -146,7 +146,7 @@ def test_plan_rutford_writes_csv_and_ics(tmp_path: Path) -> None:
 def test_plan_rejects_bad_iso() -> None:
     result = CliRunner().invoke(
         cli,
-        ["plan", "--sensor", "NISAR-L", "--preset", "RUTFORD",
+        ["plan", "--sensor", "L-BAND", "--preset", "RUTFORD",
          "--start", "not-a-date", "--end", "2026-07-01T00:00",
          "--output", "p"],
     )
@@ -164,7 +164,7 @@ def test_synthesize_writes_geotiff(tmp_path: Path) -> None:
     out = tmp_path / "fmap"
     result = CliRunner().invoke(
         cli,
-        ["synthesize", "--sensor", "NISAR-L", "--preset", "RUTFORD",
+        ["synthesize", "--sensor", "L-BAND", "--preset", "RUTFORD",
          "--triplet-start-date", "2026-07-14T00:00",
          "--size", "3.0", "2.0",   # 3 km x 2 km for speed
          "--pixel-m", "50",
@@ -191,7 +191,7 @@ def test_batch_with_site_presets_writes_parquet(tmp_path: Path) -> None:
         cli,
         ["batch",
          "--site-preset", "THWAITES", "--site-preset", "RUTFORD",
-         "--sensor", "NISAR-L", "--sensor", "SENTINEL-1-DUAL",
+         "--sensor", "L-BAND", "--sensor", "C-BAND",
          "--output", str(out)],
     )
     assert result.exit_code == 0, result.output
@@ -214,7 +214,7 @@ sites:
     out = tmp_path / "batch_yaml"
     result = CliRunner().invoke(
         cli,
-        ["batch", "--sites", str(yaml_path), "--sensor", "NISAR-L",
+        ["batch", "--sites", str(yaml_path), "--sensor", "L-BAND",
          "--output", str(out)],
     )
     assert result.exit_code == 0, result.output
@@ -227,7 +227,7 @@ sites:
 def test_batch_no_sites_errors() -> None:
     result = CliRunner().invoke(
         cli,
-        ["batch", "--sensor", "NISAR-L", "--output", "out"],
+        ["batch", "--sensor", "L-BAND", "--output", "out"],
     )
     assert result.exit_code != 0
     assert "site" in result.output.lower()

@@ -8,7 +8,10 @@ production that's `st.session_state`, in tests it's a plain dict.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from tidal_insar_sim.constellation import Constellation
 
 from tidal_insar_sim.sensor import SENSOR_PRESETS, Sensor
 from tidal_insar_sim.site import SITE_PRESETS, Site
@@ -26,12 +29,17 @@ K_SITE_NAME   = "tis.site_name"
 K_SITE_LAT    = "tis.site_lat"
 K_SITE_LON    = "tis.site_lon"
 K_SITE_ICE_M  = "tis.site_ice_thickness_m"
-K_SENSOR_NAME = "tis.sensor_name"
+K_SENSOR_NAME = "tis.sensor_name"    # "X-BAND" | "C-BAND" | "L-BAND"
+K_INCIDENCE   = "tis.incidence_deg"
+K_CONSTELLATION = "tis.constellation"  # list[dict] — rows of the phase table
+K_SWEEP_MODE  = "tis.sweep_mode"       # "rigid" | "multi_baseline" | "any_triplet"
 K_SWEEP_STEP  = "tis.sweep_step_hours"
 K_SWEEP_DAYS  = "tis.sweep_duration_days"
 K_GAMMA_G     = "tis.gamma_grounded"
 K_GAMMA_S     = "tis.gamma_shelf"
 K_REPORT      = "tis.report"
+K_MULTI_B_REPORTS = "tis.multi_b_reports"
+K_ANY_TRIPLET = "tis.any_triplet"
 K_PLAN_DF     = "tis.plan_df"
 K_FMAP_STRONG = "tis.fmap_strong"
 K_FMAP_NULL   = "tis.fmap_null"
@@ -47,12 +55,18 @@ DEFAULTS: dict[str, Any] = {
     K_SITE_LAT:    -75.00,
     K_SITE_LON:   -106.00,
     K_SITE_ICE_M:  450.0,
-    K_SENSOR_NAME: "NISAR-L",
+    K_SENSOR_NAME: "L-BAND",
+    K_INCIDENCE:   39.0,
+    # Default constellation: 1 satellite, 12-day repeat (NISAR-like)
+    K_CONSTELLATION: [{"name": "Sat-1", "phase_offset_days": 0.0, "repeat_days": 12.0}],
+    K_SWEEP_MODE:  "rigid",
     K_SWEEP_STEP:  1.0,
     K_SWEEP_DAYS:  29.53,
     K_GAMMA_G:     0.88,
     K_GAMMA_S:     0.60,
     K_REPORT:      None,
+    K_MULTI_B_REPORTS: None,
+    K_ANY_TRIPLET: None,
     K_PLAN_DF:     None,
     K_FMAP_STRONG: None,
     K_FMAP_NULL:   None,
@@ -83,12 +97,35 @@ def resolve_site(store: StoreLike) -> Site:
 
 
 def resolve_sensor(store: StoreLike) -> Sensor:
-    return SENSOR_PRESETS[store[K_SENSOR_NAME]]
+    base = SENSOR_PRESETS[store[K_SENSOR_NAME]]
+    # Allow user-overridden incidence angle.
+    from dataclasses import replace
+    incidence = float(store.get(K_INCIDENCE, base.incidence_deg))
+    if incidence == base.incidence_deg:
+        return base
+    return replace(base, incidence_deg=incidence)
+
+
+def resolve_constellation(store: StoreLike) -> Constellation:
+    """Build a `Constellation` from the K_CONSTELLATION rows in store."""
+    from tidal_insar_sim.constellation import Constellation, Satellite
+
+    rows = store.get(K_CONSTELLATION) or DEFAULTS[K_CONSTELLATION]
+    sats = tuple(
+        Satellite(
+            name=str(r.get("name", f"Sat-{i+1}")),
+            phase_offset_days=float(r["phase_offset_days"]),
+            repeat_days=float(r["repeat_days"]),
+        )
+        for i, r in enumerate(rows)
+    )
+    return Constellation(satellites=sats)
 
 
 def invalidate_computed(store: StoreLike) -> None:
     """Clear cached TripletReport / plan / fringe maps when inputs change."""
-    for key in (K_REPORT, K_PLAN_DF, K_FMAP_STRONG, K_FMAP_NULL):
+    for key in (K_REPORT, K_MULTI_B_REPORTS, K_ANY_TRIPLET, K_PLAN_DF,
+                K_FMAP_STRONG, K_FMAP_NULL):
         store[key] = None
 
 
