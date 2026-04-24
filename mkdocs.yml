@@ -36,6 +36,7 @@ theme:
 nav:
   - Home: index.md
   - Quick start: quickstart.md
+  - Constellations: constellations.md
   - Physics: physics.md
   - CATS2008 setup: cats2008_setup.md
   - API reference: api.md

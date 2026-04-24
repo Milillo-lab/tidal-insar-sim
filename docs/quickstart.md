@@ -23,12 +23,19 @@ tidal-insar-sim setup-cats --path ~/Downloads/CATS2008.zip
 ## Run the sweep — Python
 
 ```python
-from tidal_insar_sim import Sensor, Site, Simulator
+from tidal_insar_sim import Sensor, Site, Simulator, Constellation
 
-sim = Simulator(sensor=Sensor.NISAR_L, site=Site.RUTFORD)
+sim = Simulator(
+    sensor=Sensor.L_BAND,                          # X-band / C-band / L-band
+    site=Site.RUTFORD,
+    constellation=Constellation.NISAR,             # 1 sat, 12 d (default)
+)
 report = sim.sweep_triplets()
 print(report.summary())
 ```
+
+See [Constellations](constellations.md) for multi-satellite setups
+(Sentinel-1 A+B, RCM, custom) and multi-baseline / any-triplet modes.
 
 Typical output (Rutford, NISAR-L, 29.53-day sweep at 1 h step):
 
@@ -49,8 +56,13 @@ Typical output (Rutford, NISAR-L, 29.53-day sweep at 1 h step):
 ## Run the sweep — CLI
 
 ```bash
-tidal-insar-sim analyze --sensor NISAR-L --preset RUTFORD --output out/rutford
+tidal-insar-sim analyze --sensor L-BAND --preset RUTFORD --output out/rutford
 ```
+
+Sensor is `X-BAND`, `C-BAND`, or `L-BAND`. Add `--n-sats 2 --repeat-per-sat 12`
+for a Sentinel-1 A+B equivalent, `--constellation RCM` for a preset, or
+`--satellites constellation.yaml` for arbitrary phasing — see
+[Constellations](constellations.md).
 
 ```
         tidal-insar-sim analyze  -  Rutford_GL / NISAR-L
@@ -72,7 +84,8 @@ The directory contains `summary.json`, `sweep.csv`, `site.geojson`,
 
 ```bash
 tidal-insar-sim plan \
-    --sensor NISAR-L --preset RUTFORD \
+    --sensor L-BAND --preset RUTFORD \
+    --constellation NISAR \
     --start 2026-06-01T00:00 --end 2026-09-01T00:00 \
     --top-n 10 --min-fringes 5 \
     --output out/rutford_plan
@@ -84,7 +97,7 @@ Writes `out/rutford_plan.csv` + `out/rutford_plan.ics`.
 
 ```bash
 tidal-insar-sim synthesize \
-    --sensor NISAR-L --preset RUTFORD \
+    --sensor L-BAND --preset RUTFORD \
     --triplet-start-date 2026-06-02T00:00 \
     --output out/rutford_best.tif
 ```

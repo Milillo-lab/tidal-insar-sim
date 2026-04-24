@@ -6,37 +6,72 @@ Curated guide to the public Python API. See the
 ## Top-level
 
 ```python
-from tidal_insar_sim import Sensor, Site, Simulator, TripletReport
+from tidal_insar_sim import (
+    Sensor, Site, Simulator, TripletReport,
+    Constellation, Satellite,
+)
 ```
 
 ## `Sensor`
 
-`@dataclass(frozen=True)`. Immutable SAR sensor descriptor.
+`@dataclass(frozen=True)`. Immutable SAR-band descriptor. As of v0.2, a
+`Sensor` encodes *only* the electromagnetic + geometric properties — the
+observation cadence lives on a [`Constellation`](#constellation).
 
 | Field           | Type   | Notes                             |
 |-----------------|--------|-----------------------------------|
-| `name`          | `str`  | Display name.                     |
+| `band`          | `str`  | "X", "C", or "L".                 |
 | `wavelength_m`  | `float`| SAR wavelength (m).               |
-| `repeat_days`   | `float`| Nominal repeat interval.          |
 | `incidence_deg` | `float`| Centre incidence angle.           |
 | `polarization`  | `str`  | Default "HH".                     |
-| `provider`      | `str`  | Agency / operator.                |
 
 **Presets** (class attributes):
 
 ```python
-Sensor.NISAR_L             # 23.6 cm, 12 d, 39 deg
-Sensor.SENTINEL_1_SINGLE   # 5.56 cm, 12 d, 39 deg (post S1B)
-Sensor.SENTINEL_1_DUAL     # 5.56 cm,  6 d, 39 deg (pre  S1B)
-Sensor.ALOS_2              # 23.6 cm, 14 d, 34 deg
-Sensor.ALOS_4              # 23.6 cm, 14 d, 34 deg
-Sensor.COSMO_SKYMED        # 3.12 cm,  4 d, 32 deg
-Sensor.TERRASAR_X          # 3.11 cm, 11 d, 36 deg
-Sensor.RADARSAT_CONSTELLATION  # 5.56 cm,  4 d, 34 deg
-Sensor.UMBRA_X             # 3.12 cm,  0 d (tasked), 40 deg
+Sensor.X_BAND     # 3.12 cm, 35 deg
+Sensor.C_BAND     # 5.56 cm, 39 deg
+Sensor.L_BAND     # 23.6 cm, 39 deg
 ```
 
-**Properties:** `half_wavelength_m`, `fringe_los_cm`.
+**Properties:** `name`, `half_wavelength_m`, `fringe_los_cm`.
+
+## `Satellite`
+
+```python
+Satellite(name="S1A", phase_offset_days=0.0, repeat_days=12.0)
+```
+
+A single orbit repeat, with a fixed phase offset at `t=0`. Acquisitions are
+at `phase_offset_days + k * repeat_days` for k = 0, 1, 2, …
+
+## `Constellation`
+
+An ordered tuple of `Satellite`s. See the full [Constellations](constellations.md)
+page for discussion.
+
+| Method / property | Returns |
+|---|---|
+| `satellites` | `tuple[Satellite, ...]` |
+| `n_satellites` | `int` |
+| `effective_repeat_days(window_days=30)` | Smallest inter-acquisition gap. |
+| `acquisition_times(window_days)` | Sorted ndarray of acquisition epochs. |
+| `valid_baselines_days(window_days=365, max_days=None)` | Unique realisable rigid B. |
+| `describe()` | Pretty summary string. |
+
+**Factories:**
+
+```python
+Constellation.single(repeat_days=12.0)
+Constellation.equally_phased(n=2, repeat_days=12.0)
+```
+
+**Presets:**
+
+```python
+Constellation.NISAR, Constellation.ALOS,
+Constellation.SENTINEL_1_SINGLE, Constellation.SENTINEL_1_DUAL,
+Constellation.RCM
+```
 
 ## `Site`
 
@@ -64,19 +99,28 @@ Grounding-zone site with ice-mechanical parameters.
 
 ## `Simulator`
 
-Binds a `Sensor`, a `Site`, and a tide function.
+Binds a `Sensor`, a `Site`, a `Constellation`, and a tide function.
 
 ```python
-sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
+sim = Simulator(
+    sensor=Sensor.L_BAND,
+    site=Site.THWAITES,
+    constellation=Constellation.NISAR,   # default: single-sat 12 d
+)
 # tide_fn defaults to CATS2008 auto-load;
 # pass tide_fn=my_mock for deterministic tests.
 ```
 
 **Methods:**
 
-- `sim.sweep_triplets(step_hours=1.0, duration_days=29.53) -> TripletReport`
-- `sim.synthesize_ddinsar(triplet_start_hours, *, size_m, pixel_m, gamma_grounded, gamma_shelf, multi_look, noise_seed) -> FringeMap`
-- `sim.confidence(triplet_start_hours, *, jitter_hours=1.0, n_realisations=10_000, rng=None, min_fringes_threshold=1.0) -> float`
+- `sim.sweep_triplets(step_hours=1.0, duration_days=29.53, *, baseline_days=None) -> TripletReport`
+  — rigid-B sweep at the constellation's effective baseline (override with `baseline_days=`).
+- `sim.multi_baseline_sweep(step_hours=1.0, duration_days=29.53, *, max_baseline_days=None) -> dict[float, TripletSweep]`
+  — one rigid sweep per valid B from the constellation's schedule.
+- `sim.any_triplet_sweep(duration_days=29.53, *, max_span_days=None, require_equal_baseline=False) -> AnyTripletSweep`
+  — every `(t1<t2<t3)` from the schedule; relax or preserve the equal-baseline constraint.
+- `sim.synthesize_ddinsar(triplet_start_hours, *, size_m, pixel_m, gamma_grounded, gamma_shelf, multi_look, noise_seed, baseline_days=None) -> FringeMap`
+- `sim.confidence(triplet_start_hours, *, jitter_hours=1.0, n_realisations=10_000, rng=None, min_fringes_threshold=1.0, baseline_days=None) -> float`
 
 ## `TripletReport`
 

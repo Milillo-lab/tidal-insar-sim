@@ -9,7 +9,9 @@ import click
 
 from tidal_insar_sim.cli._common import (
     CONSOLE,
+    constellation_options,
     parse_iso_datetime,
+    resolve_constellation,
     resolve_sensor,
     resolve_site,
 )
@@ -17,7 +19,8 @@ from tidal_insar_sim.planner import REFERENCE_EPOCH
 
 
 @click.command("synthesize")
-@click.option("--sensor", required=True)
+@click.option("--sensor", required=True, help="Sensor band (X-BAND, C-BAND, L-BAND).")
+@click.option("--incidence", type=float, default=None)
 @click.option("--preset", default=None)
 @click.option("--lat", type=float, default=None)
 @click.option("--lon", type=float, default=None)
@@ -34,8 +37,10 @@ from tidal_insar_sim.planner import REFERENCE_EPOCH
 @click.option("--seed", "noise_seed", type=int, default=1, show_default=True)
 @click.option("--output", required=True, type=click.Path(path_type=Path),
               help="Output GeoTIFF path (or prefix; .tif added if missing).")
+@constellation_options
 def synthesize_command(
     sensor: str,
+    incidence: float | None,
     preset: str | None,
     lat: float | None,
     lon: float | None,
@@ -49,18 +54,28 @@ def synthesize_command(
     multi_look: int,
     noise_seed: int,
     output: Path,
+    constellation_preset: str | None,
+    n_sats: int | None,
+    repeat_per_sat: float | None,
+    satellites_file: Path | None,
 ) -> None:
-    """Build a 3-band DDInSAR GeoTIFF (wrapped_phase, coherence, h_DD)."""
+    """Build a 3-band DDInSAR GeoTIFF (wrapped_phase, coherence, h_DD). The
+    triplet (t1,t2,t3) is spaced by the constellation's effective baseline.
+    """
     from tidal_insar_sim.simulator import Simulator
 
-    sensor_obj = resolve_sensor(sensor)
+    sensor_obj = resolve_sensor(sensor, incidence_deg=incidence)
     site_obj = resolve_site(
         preset=preset, lat=lat, lon=lon, name=name, ice_thickness_m=ice_thickness_m,
+    )
+    constellation = resolve_constellation(
+        name=constellation_preset, n_sats=n_sats,
+        repeat_per_sat=repeat_per_sat, satellites_file=satellites_file,
     )
     start_dt = parse_iso_datetime(triplet_start_raw, param="triplet-start-date")
     dt_hours = _hours_since_epoch(start_dt)
 
-    sim = Simulator(sensor=sensor_obj, site=site_obj)
+    sim = Simulator(sensor=sensor_obj, site=site_obj, constellation=constellation)
     width_m = size_km[0] * 1000.0
     height_m = size_km[1] * 1000.0
     fmap = sim.synthesize_ddinsar(

@@ -13,14 +13,18 @@ if TYPE_CHECKING:
 
 from tidal_insar_sim.cli._common import (
     CONSOLE,
+    constellation_options,
     parse_iso_datetime,
+    resolve_constellation,
     resolve_sensor,
     resolve_site,
 )
 
 
 @click.command("plan")
-@click.option("--sensor", required=True, help="Sensor preset, e.g. NISAR-L.")
+@click.option("--sensor", required=True, help="Sensor band (X-BAND, C-BAND, L-BAND).")
+@click.option("--incidence", type=float, default=None,
+              help="Override incidence angle (degrees).")
 @click.option("--preset", default=None, help="Site preset (e.g. THWAITES).")
 @click.option("--lat", type=float, default=None)
 @click.option("--lon", type=float, default=None)
@@ -37,8 +41,10 @@ from tidal_insar_sim.cli._common import (
 @click.option("--output", "output_prefix", required=True,
               type=click.Path(path_type=Path),
               help="Output prefix; writes {prefix}.csv and {prefix}.ics.")
+@constellation_options
 def plan_command(
     sensor: str,
+    incidence: float | None,
     preset: str | None,
     lat: float | None,
     lon: float | None,
@@ -49,19 +55,27 @@ def plan_command(
     n: int,
     min_fringes: float,
     output_prefix: Path,
+    constellation_preset: str | None,
+    n_sats: int | None,
+    repeat_per_sat: float | None,
+    satellites_file: Path | None,
 ) -> None:
     """Top-N acquisition plan in a date window, with confidence and .ics export."""
     from tidal_insar_sim.planner import plan_acquisitions, to_ics
     from tidal_insar_sim.simulator import Simulator
 
-    sensor_obj = resolve_sensor(sensor)
+    sensor_obj = resolve_sensor(sensor, incidence_deg=incidence)
     site_obj = resolve_site(
         preset=preset, lat=lat, lon=lon, name=name, ice_thickness_m=ice_thickness_m,
+    )
+    constellation = resolve_constellation(
+        name=constellation_preset, n_sats=n_sats,
+        repeat_per_sat=repeat_per_sat, satellites_file=satellites_file,
     )
     start_dt = parse_iso_datetime(start_raw, param="start")
     end_dt = parse_iso_datetime(end_raw, param="end")
 
-    sim = Simulator(sensor=sensor_obj, site=site_obj)
+    sim = Simulator(sensor=sensor_obj, site=site_obj, constellation=constellation)
     df = plan_acquisitions(
         sim, start_date=start_dt, end_date=end_dt,
         n=n, min_fringes=min_fringes,

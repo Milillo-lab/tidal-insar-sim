@@ -84,6 +84,100 @@ def test_analyze_preset_rutford_writes_outputs(tmp_path: Path) -> None:
     summary = json.loads((out / "summary.json").read_text())
     assert summary["verdict"] == "excellent"
     assert summary["P_usable_ge_3fr"] > 0.5
+    # Constellation defaults = 1 sat / 12 d
+    assert summary["constellation_n_sats"] == 1
+    assert summary["constellation_B_eff_days"] == 12.0
+
+
+@cats_only
+def test_analyze_with_n_sats_and_repeat(tmp_path: Path) -> None:
+    """`--n-sats 2 --repeat-per-sat 12` builds an equally-phased dual constellation
+    → effective baseline 6 days (Sentinel-1 A+B).
+    """
+    out = tmp_path / "rutford_dual"
+    result = CliRunner().invoke(
+        cli,
+        ["analyze", "--sensor", "L-BAND", "--preset", "RUTFORD",
+         "--n-sats", "2", "--repeat-per-sat", "12",
+         "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["constellation_n_sats"] == 2
+    assert summary["constellation_B_eff_days"] == 6.0
+
+
+@cats_only
+def test_analyze_with_constellation_preset(tmp_path: Path) -> None:
+    out = tmp_path / "rcm"
+    result = CliRunner().invoke(
+        cli,
+        ["analyze", "--sensor", "C-BAND", "--preset", "RUTFORD",
+         "--constellation", "RCM", "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["constellation_n_sats"] == 3
+    assert summary["constellation_B_eff_days"] == pytest.approx(4.0)
+
+
+@cats_only
+def test_analyze_multi_baseline_mode(tmp_path: Path) -> None:
+    out = tmp_path / "rcm_multi"
+    result = CliRunner().invoke(
+        cli,
+        ["analyze", "--sensor", "L-BAND", "--preset", "RUTFORD",
+         "--constellation", "RCM", "--mode", "multi_baseline",
+         "--duration", "30",
+         "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert (out / "multi_baseline_summary.csv").exists()
+    # At least one per-B CSV must exist.
+    per_b = list(out.glob("sweep_B*.csv"))
+    assert len(per_b) >= 2
+
+
+@cats_only
+def test_analyze_any_triplet_mode(tmp_path: Path) -> None:
+    out = tmp_path / "dual_any"
+    result = CliRunner().invoke(
+        cli,
+        ["analyze", "--sensor", "L-BAND", "--preset", "RUTFORD",
+         "--n-sats", "2", "--repeat-per-sat", "12",
+         "--mode", "any_triplet", "--duration", "60",
+         "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    assert (out / "any_triplets.csv").exists()
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["mode"] == "any_triplet"
+    assert summary["n_triplets"] > 0
+
+
+@cats_only
+def test_analyze_with_satellites_yaml(tmp_path: Path) -> None:
+    yaml_text = """
+satellites:
+  - name: S1A
+    phase_offset_days: 0.0
+    repeat_days: 12.0
+  - name: S1B
+    phase_offset_days: 6.0
+    repeat_days: 12.0
+"""
+    yaml_path = tmp_path / "constellation.yaml"
+    yaml_path.write_text(yaml_text)
+    out = tmp_path / "custom_const"
+    result = CliRunner().invoke(
+        cli,
+        ["analyze", "--sensor", "C-BAND", "--preset", "RUTFORD",
+         "--satellites", str(yaml_path), "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["constellation_n_sats"] == 2
+    assert summary["constellation_B_eff_days"] == 6.0
 
 
 @cats_only
@@ -197,6 +291,26 @@ def test_batch_with_site_presets_writes_parquet(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     assert (out / "batch.parquet").exists()
     assert (out / "heatmap_P_usable_ge_3fr.csv").exists()
+
+
+@cats_only
+def test_batch_with_multiple_constellations(tmp_path: Path) -> None:
+    """Grid of 1 site x 1 sensor x 2 constellations → 2 rows."""
+    import pandas as pd
+
+    out = tmp_path / "batch_constellations"
+    result = CliRunner().invoke(
+        cli,
+        ["batch",
+         "--site-preset", "RUTFORD",
+         "--sensor", "L-BAND",
+         "--constellation", "NISAR", "--constellation", "SENTINEL-1-DUAL",
+         "--output", str(out)],
+    )
+    assert result.exit_code == 0, result.output
+    df = pd.read_parquet(out / "batch.parquet")
+    assert len(df) == 2
+    assert set(df["n_satellites"]) == {1, 2}
 
 
 @cats_only

@@ -6,9 +6,13 @@ how robust are they under ±1 h timing jitter?"*
 
 ```python
 from datetime import datetime, timezone
-from tidal_insar_sim import Sensor, Site, Simulator
+from tidal_insar_sim import Constellation, Sensor, Site, Simulator
 
-sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
+sim = Simulator(
+    sensor=Sensor.L_BAND,
+    site=Site.THWAITES,
+    constellation=Constellation.NISAR,
+)
 report = sim.sweep_triplets()
 
 plan = report.recommended_triplets(
@@ -18,6 +22,19 @@ plan = report.recommended_triplets(
 )
 print(plan.head())
 ```
+
+Want to compare NISAR, S1 A+B, and RCM side by side? The **multi-baseline
+mode** runs one rigid sweep per valid baseline in a single call:
+
+```python
+sweeps = sim.multi_baseline_sweep()          # defaults: 30 d @ 1 h
+for B, sw in sorted(sweeps.items()):
+    import numpy as np
+    print(f"B = {B:4.1f} d  P(>=3fr) = {np.mean(sw.fringes >= 3):.1%}")
+```
+
+See the [Constellations](../constellations.md) page for the full
+constellation model and the `any_triplet_sweep` mode.
 
 Sample output:
 
@@ -57,7 +74,8 @@ fringes in the event description.
 
 ```bash
 tidal-insar-sim plan \
-    --sensor NISAR-L --preset THWAITES \
+    --sensor L-BAND --preset THWAITES \
+    --constellation NISAR \
     --start 2026-06-01T00:00 --end 2026-09-01T00:00 \
     --top-n 10 --min-fringes 3 \
     --output thwaites_plan

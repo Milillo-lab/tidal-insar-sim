@@ -56,12 +56,23 @@ The CLI verifies MD5 `008a30cd08142cb6acc7f7687e22c4a3`, extracts to
 ## Quick start — library
 
 ```python
-from tidal_insar_sim import Sensor, Site, Simulator
+from tidal_insar_sim import Sensor, Site, Simulator, Constellation
 
-sim = Simulator(sensor=Sensor.NISAR_L, site=Site.THWAITES)
+sim = Simulator(
+    sensor=Sensor.L_BAND,                           # band: X, C, L
+    site=Site.THWAITES,
+    constellation=Constellation.NISAR,              # 1 sat, 12 d (default)
+)
 report = sim.sweep_triplets()
 print(report.summary())
 # {'verdict': 'good', 'P_usable_ge_3fr': 0.69, 'fringe_mean': 4.13, ...}
+
+# Compare cadences across a multi-sat constellation:
+sim_dual = Simulator(
+    sensor=Sensor.C_BAND, site=Site.RUTFORD,
+    constellation=Constellation.equally_phased(n=2, repeat_days=12.0),  # B=6 d
+)
+sweeps = sim_dual.multi_baseline_sweep()            # {B: TripletSweep}
 
 from datetime import datetime, timezone
 plan = report.recommended_triplets(
@@ -75,25 +86,42 @@ fmap = sim.synthesize_ddinsar(triplet_start_hours=report.best_triplet_h())
 fmap.to_geotiff("thwaites_best.tif")  # EPSG:3031, 3 bands
 ```
 
+See [`docs/constellations.md`](docs/constellations.md) for the full
+constellation model (preset/YAML/arbitrary-phasing) and the three sweep
+modes (`rigid`, `multi_baseline`, `any_triplet`).
+
 ## Quick start — CLI
 
 ```bash
-tidal-insar-sim analyze --sensor NISAR-L --preset RUTFORD --output out/rutford
+# Single-site sweep (NISAR-like defaults: 1 sat, 12 d)
+tidal-insar-sim analyze --sensor L-BAND --preset RUTFORD --output out/rutford
+
+# Multi-baseline mode for a dual-sat constellation (--n-sats 2, 12 d each -> B=6 d)
+tidal-insar-sim analyze \
+    --sensor C-BAND --preset RUTFORD \
+    --n-sats 2 --repeat-per-sat 12 \
+    --mode multi_baseline --output out/rutford_dual_multi
+
+# Preset constellation lookup
+tidal-insar-sim analyze --sensor C-BAND --preset RUTFORD \
+    --constellation RCM --output out/rutford_rcm
 
 tidal-insar-sim plan \
-    --sensor NISAR-L --preset RUTFORD \
+    --sensor L-BAND --preset RUTFORD \
+    --constellation NISAR \
     --start 2026-06-01T00:00 --end 2026-09-01T00:00 \
     --top-n 10 --min-fringes 5 \
     --output out/rutford_plan
 
 tidal-insar-sim synthesize \
-    --sensor NISAR-L --preset THWAITES \
+    --sensor L-BAND --preset THWAITES \
     --triplet-start-date 2026-07-15T00:00 \
     --output out/thwaites_ddinsar.tif
 
 tidal-insar-sim batch \
     --site-preset THWAITES --site-preset RUTFORD \
-    --sensor NISAR-L --sensor SENTINEL-1-DUAL \
+    --sensor L-BAND --sensor C-BAND \
+    --constellation NISAR --constellation SENTINEL-1-DUAL \
     --output out/batch
 ```
 

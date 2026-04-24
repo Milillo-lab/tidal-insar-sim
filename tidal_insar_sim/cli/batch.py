@@ -13,7 +13,12 @@ if TYPE_CHECKING:
 
     from tidal_insar_sim.site import Site
 
-from tidal_insar_sim.cli._common import CONSOLE, resolve_sensor, resolve_site
+from tidal_insar_sim.cli._common import (
+    CONSOLE,
+    resolve_constellation,
+    resolve_sensor,
+    resolve_site,
+)
 
 
 @click.command("batch")
@@ -23,7 +28,9 @@ from tidal_insar_sim.cli._common import CONSOLE, resolve_sensor, resolve_site
 @click.option("--site-preset", "site_presets", multiple=True,
               help="Alternative to --sites: list site presets (--site-preset THWAITES ...).")
 @click.option("--sensor", "sensor_names", multiple=True, required=True,
-              help="Sensor preset(s). Pass multiple times for multiple sensors.")
+              help="Sensor band(s). Pass multiple times: --sensor L-BAND --sensor C-BAND.")
+@click.option("--constellation", "constellation_names", multiple=True,
+              help="Constellation preset(s). Pass multiple times for a grid.")
 @click.option("--output", "output_dir", required=True,
               type=click.Path(path_type=Path, file_okay=False),
               help="Output dir; writes batch.parquet + heatmap.csv per metric.")
@@ -33,10 +40,15 @@ def batch_command(
     sites_yaml: Path | None,
     site_presets: tuple[str, ...],
     sensor_names: tuple[str, ...],
+    constellation_names: tuple[str, ...],
     output_dir: Path,
     metric: str,
 ) -> None:
-    """Run the sweep over a grid of (site, sensor) pairs."""
+    """Run the sweep over a grid of (site, sensor, constellation) combos.
+
+    If `--constellation` is omitted, a single-sat 12-day default is used for
+    each sensor.
+    """
     from tidal_insar_sim.batch import (
         batch_compare,
         batch_to_parquet,
@@ -48,9 +60,20 @@ def batch_command(
         msg = "No sites provided. Pass --sites YAML or one or more --site-preset NAME."
         raise click.UsageError(msg)
     sensors = [resolve_sensor(s) for s in sensor_names]
+    constellations = (
+        [resolve_constellation(name=n) for n in constellation_names]
+        if constellation_names else None
+    )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    df = batch_compare(sites, sensors)
+    df = batch_compare(sites, sensors, constellations=constellations)
+    # When multiple constellations exist, fold them into the sensor column so
+    # pivot_heatmap has a unique (site, sensor) axis.
+    if constellations is not None and len(constellations) > 1:
+        df = df.copy()
+        df["sensor"] = df["sensor"] + " [B=" + df["effective_baseline_days"].map(
+            lambda b: f"{float(b):.1f}d"
+        ) + "]"
     parquet_path = output_dir / "batch.parquet"
     batch_to_parquet(df, parquet_path)
     heatmap = pivot_heatmap(df, metric=metric)
