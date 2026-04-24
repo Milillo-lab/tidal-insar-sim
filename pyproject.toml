@@ -8,8 +8,32 @@ dynamic = ["version"]
 description = "DDInSAR fringe-count simulator for tidally flexed grounding zones"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
-authors = [{ name = "Pietro Milillo" }]
+license = { file = "LICENSE" }
+authors = [
+    { name = "Pietro Milillo", email = "pmilillo@uh.edu" },
+]
+maintainers = [
+    { name = "Pietro Milillo", email = "pmilillo@uh.edu" },
+]
+keywords = [
+    "insar", "sar", "ddinsar", "grounding-line", "antarctica",
+    "tide-model", "cats2008", "nisar", "cryosphere", "glaciology",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Hydrology",
+    "Topic :: Scientific/Engineering :: Oceanography",
+]
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.12",
@@ -59,16 +83,43 @@ dev = [
     "pytest-xdist>=3",
     "mypy>=1.9",
     "ruff>=0.3",
+    "types-PyYAML",
+]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+    "pymdown-extensions>=10.7",
 ]
 
 [project.scripts]
 tidal-insar-sim = "tidal_insar_sim.cli.main:cli"
+
+[project.urls]
+Homepage = "https://github.com/pmilillo/tidal-insar-sim"
+Repository = "https://github.com/pmilillo/tidal-insar-sim"
+Documentation = "https://github.com/pmilillo/tidal-insar-sim#readme"
+Issues = "https://github.com/pmilillo/tidal-insar-sim/issues"
 
 [tool.hatch.version]
 path = "tidal_insar_sim/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tidal_insar_sim"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/tidal_insar_sim",
+    "/tests",
+    "/docs",
+    "/reference",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/paper.md",
+    "/paper.bib",
+    "/pyproject.toml",
+    "/mkdocs.yml",
+]
 
 [tool.ruff]
 line-length = 100
