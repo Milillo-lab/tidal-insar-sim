@@ -42,42 +42,42 @@ st.title("Setup — site, sensor, constellation")
 # ---------------------------------------------------------------------------
 
 st.subheader("Site selection")
-st.caption("Click anywhere on the map (lat < 0) to pick a custom site, or use a preset below.")
-
-# Folium with EPSG:3031 polar stereographic projection.
-# NASA GIBS Blue Marble serves tiles in this projection.
-m = folium.Map(
-    location=[-90, 0],
-    zoom_start=1,
-    crs="EPSG3031",
-    tiles=None,
-    max_zoom=5,
+st.caption(
+    "Click anywhere on the map (lat < 0) to pick a custom site, or use a preset below. "
+    "Antarctic-projection display is roadmap for v0.3; current view is web Mercator zoomed in."
 )
-folium.TileLayer(
-    tiles=(
-        "https://gibs.earthdata.nasa.gov/wmts/epsg3031/best/"
-        "BlueMarble_NextGeneration/default/500m/{z}/{y}/{x}.jpeg"
-    ),
-    attr="NASA GIBS | Blue Marble Next Generation",
-    name="Blue Marble (EPSG:3031)",
-    max_zoom=5,
-).add_to(m)
+
+# Folium in default Web Mercator (EPSG:3857) with CartoDB Dark Matter tiles.
+# True polar-stereographic display would need a proj4leaflet custom CRS aligned
+# to the chosen tile source — deferred to v0.3. For v0.2 we render Mercator and
+# zoom hard onto Antarctica. Distorted near the pole but interactive + reliable.
+m = folium.Map(
+    location=[-78.0, 0.0],
+    zoom_start=3,
+    tiles="CartoDB dark_matter",
+    min_zoom=2,
+    max_zoom=7,
+    max_bounds=True,
+    min_lat=-90.0, max_lat=-50.0,
+    min_lon=-180.0, max_lon=180.0,
+)
 
 # Preset glacier markers (all Antarctic sites).
 for name, site in SITE_PRESETS.items():
     folium.CircleMarker(
         location=[site.lat, site.lon],
-        radius=6,
-        popup=(
+        radius=8,
+        popup=folium.Popup(
             f"<b>{name}</b><br>lat={site.lat:.2f}, lon={site.lon:.2f}<br>"
-            f"H = {site.ice_thickness_m:.0f} m"
+            f"H = {site.ice_thickness_m:.0f} m",
+            max_width=240,
         ),
         tooltip=name,
-        color="#ffd200",
+        color="#fbbf24",
         weight=2,
         fill=True,
-        fill_color="#ffd200",
-        fill_opacity=0.85,
+        fill_color="#fbbf24",
+        fill_opacity=0.95,
     ).add_to(m)
 
 # Highlight the current selection.
@@ -87,7 +87,7 @@ folium.Marker(
     icon=folium.Icon(color="red", icon="info-sign"),
 ).add_to(m)
 
-click = st_folium(m, height=560, width=None, key="site-map-3031",
+click = st_folium(m, height=560, width=None, key="site-map-mercator",
                    returned_objects=["last_clicked"])
 
 # ---------------------------------------------------------------------------

@@ -107,19 +107,35 @@ def resolve_sensor(store: StoreLike) -> Sensor:
 
 
 def resolve_constellation(store: StoreLike) -> Constellation:
-    """Build a `Constellation` from the K_CONSTELLATION rows in store."""
+    """Build a `Constellation` from the K_CONSTELLATION rows in store.
+
+    Rows with `None` / missing `phase_offset_days` or `repeat_days` are
+    silently skipped, so the page survives mid-edit states in the data
+    editor (where a freshly added row hasn't been filled in yet).
+    """
     from tidal_insar_sim.constellation import Constellation, Satellite
 
     rows = store.get(K_CONSTELLATION) or DEFAULTS[K_CONSTELLATION]
-    sats = tuple(
-        Satellite(
-            name=str(r.get("name", f"Sat-{i+1}")),
-            phase_offset_days=float(r["phase_offset_days"]),
-            repeat_days=float(r["repeat_days"]),
-        )
-        for i, r in enumerate(rows)
-    )
-    return Constellation(satellites=sats)
+    sats: list[Satellite] = []
+    for i, r in enumerate(rows):
+        phase = r.get("phase_offset_days")
+        repeat = r.get("repeat_days")
+        if phase is None or repeat is None:
+            continue
+        try:
+            sats.append(Satellite(
+                name=str(r.get("name") or f"Sat-{i + 1}"),
+                phase_offset_days=float(phase),
+                repeat_days=float(repeat),
+            ))
+        except (TypeError, ValueError):
+            continue
+    if not sats:
+        # Fall back to default so downstream computations don't blow up.
+        return Constellation(satellites=(
+            Satellite(name="Sat-1", phase_offset_days=0.0, repeat_days=12.0),
+        ))
+    return Constellation(satellites=tuple(sats))
 
 
 def invalidate_computed(store: StoreLike) -> None:
