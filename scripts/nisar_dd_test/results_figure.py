@@ -39,7 +39,7 @@ for bk in sorted(set(r[r.status == "measured"].belt_from.dropna())):
                  "dist_km_p75": float(np.percentile(dist, 75))})
 pd.DataFrame(offs).to_csv("out/gl_offsets.csv", index=False)
 
-fig, (a, b) = plt.subplots(1, 2, figsize=(12.5, 5.4), gridspec_kw={"width_ratios": [1, 1.15]})
+fig, (a, b, c) = plt.subplots(1, 3, figsize=(18.5, 5.6), gridspec_kw={"width_ratios": [1, 1.12, 1.0]})
 ok = r[r.status == "measured"]
 for g, d in ok.groupby("glacier"):
     a.errorbar(d.n_pred, d.n_obs, yerr=[d.n_obs - d.n_obs_p25, d.n_obs_p75 - d.n_obs],
@@ -73,6 +73,22 @@ if ex:
     b.set_xlim(x[0], x[-1]); b.set_ylim(y[-1], y[0])
     b.set_xlabel("x (m, EPSG:3031)"); b.set_ylabel("y (m, EPSG:3031)")
     b.set_title("(b) Smith, track 34, $t_2$ = 2026-07-10 (predicted 4.16)", loc="left", fontsize=10)
+# (c) NISAR grounding lines (10 % threshold, delineate.py) on the wrapped DD, with the Sentinel-1 line
+w = glob.glob("out/unw_Smith_34_20260628.npz")
+if w:
+    z = np.load(w[0]); x, y = z["x"], z["y"]
+    c.imshow(np.where(z["coh"].astype(float) > 0.3, z["wrapped"], np.nan), extent=[x[0], x[-1], y[-1], y[0]],
+             cmap="hsv", interpolation="nearest", alpha=0.85)
+    s1 = gl[gl.Glac_Name.astype(str).str.contains("Smith") & gl.Sensor.astype(str).str.contains("Sentinel")]
+    s1.sort_values("date").iloc[-1:].plot(ax=c, color="k", lw=1.2, ls="--")
+    for f, col, lab in [("out/nisar_gl_Smith_34_20260628_f10.geojson", "k", "NISAR GL, track 34 ($t_2$ 10 Jul 2026)"),
+                        ("out/nisar_gl_Smith_106_20260703_f10.geojson", "w", "NISAR GL, track 106 ($t_2$ 15 Jul 2026)")]:
+        g = gpd.read_file(f)
+        c.plot(g.geometry.x, g.geometry.y, "o", ms=3.5, mfc=col, mec="k", mew=0.4, label=lab)
+    c.plot([], [], "k--", label="Sentinel-1 GL, 30 Jan 2025")
+    c.set_xlim(-1.585e6, -1.545e6); c.set_ylim(-0.638e6, -0.612e6)
+    c.set_xlabel("x (m, EPSG:3031)"); c.legend(fontsize=7.5, loc="lower left", framealpha=0.85)
+    c.set_title("(c) NISAR grounding line vs Sentinel-1, Smith", loc="left", fontsize=10)
 fig.tight_layout()
 fig.savefig("out/fig7_nisar_dd_test.png", dpi=200)
 print(pd.DataFrame(offs).round(2).to_string())

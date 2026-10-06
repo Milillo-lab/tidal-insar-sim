@@ -4,7 +4,14 @@ All notable changes to **tidal-insar-sim** are documented here. The format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project targets [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.1] — unreleased (branch rc1-revision)
+## [0.3.2] — 2026-10-06
+
+### Added
+- `scripts/nisar_dd_test/delineate.py`: NISAR grounding-line delineation at Smith from the SNAPHU-unwrapped
+  double difference, with the comparison against the January 2025 Sentinel-1 line (GMD paper, Sect. 4.5,
+  Fig. 7c); delineated lines and summary included.
+
+## [0.3.1] — 2026-10-06 (tagged, not archived on Zenodo; superseded by 0.3.2)
 
 Companion release for the revised GMD paper (egusphere-2026-2542). It adds what the paper's
 Section 3 and Code availability statement described and v0.3.0 did not contain.
