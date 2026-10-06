@@ -4,6 +4,32 @@ All notable changes to **tidal-insar-sim** are documented here. The format
 loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the project targets [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — unreleased (branch rc1-revision)
+
+Companion release for the revised GMD paper (egusphere-2026-2542). It adds what the paper's
+Section 3 and Code availability statement described and v0.3.0 did not contain.
+
+### Added
+- `tidal_insar_sim/rop.py`: NISAR Reference Observation Plan ingestion from the ArcGIS feature
+  service or a saved GeoJSON snapshot; per-site acquisitions, one per pass; L-band mode selection
+  (main band >= 20 MHz, wider band kept when a date lists two); streams keyed by track and L-band mode;
+  incidence angle at the site from the frame footprint for NISAR's left-looking geometry.
+  Radar-mode ids are resolved from the `radar_mode_combination_N` fields: the
+  `unique_radar_mode_list` and `unique_radar_mode_mnemonic_list` fields are not in the same order.
+- `scripts/gmd_reproduce.py`: regenerates every number, table and figure of the paper's Sections 4
+  and 5 from one set of triplets; `--archive-check` repeats the NASA CMR query for public NISAR RSLC
+  and GUNW products over the sites.
+- `data/rop_snapshot/ase_bbox_2026-10-02.geojson`: the ROP query used in the paper (199 frames, 58 tracks).
+- `tests/test_rop.py`.
+
+### Fixed
+- `__version__` read "0.2.0.dev0" in the v0.3.0 release; it now matches the release.
+
+### Not added (stated in the revised paper instead)
+- No PyPI distribution, no CI workflow, no runtime CATS2008 validation exception, no SHA-256
+  recording, no `ConstellationDescriptor`: the discussion paper described these; the revised paper
+  no longer does.
+
 ## [0.1.0] — 2026-04-24
 
 First public release. Three concentric layers, each with its own test suite.
